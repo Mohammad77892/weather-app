@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>آب و هوای جهانی | World Weather + Gemini AI</title>
+    
+    <!-- فونت فارسی وزیرمتن با وزن‌های مختلف -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet" type="text/css" />
+    
+    <!-- آیکون‌ها -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- استایل‌ها با Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: 'Vazirmatn FD', sans-serif;
+            transition: background 1s ease;
+        }
+
+        /* انیمیشن‌های پس‌زمینه با رنگ‌های عمیق‌تر */
+        .bg-sunny { background: linear-gradient(135deg, #00b4db, #0083b0); }
+        .bg-cloudy { background: linear-gradient(135deg, #5d4157, #a8caba); }
+        .bg-rainy { background: linear-gradient(135deg, #203a43, #2c5364); }
+        .bg-snowy { background: linear-gradient(135deg, #e6dada, #274046); }
+        .bg-night { background: linear-gradient(135deg, #141e30, #243b55); }
+
+        /* افکت شیشه‌ای پیشرفته */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        /* انیمیشن لودینگ */
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #ffffff;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .weather-icon {
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
+        }
+
+        /* استایل دکمه جمنای با تم نئونی */
+        .gemini-btn {
+            background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+            background-size: 200% auto;
+            transition: 0.5s;
+        }
+        .gemini-btn:hover {
+            background-position: right center;
+            transform: scale(1.02);
+        }
+
+        /* استایل ورودی متن */
+        .custom-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .custom-input:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-sunny min-h-screen flex items-center justify-center p-4 text-white overflow-hidden transition-all duration-1000" id="mainBody">
+
+    <div class="glass-panel rounded-[2rem] p-10 w-full max-w-md relative transition-all duration-500 max-h-[90vh] overflow-y-auto">
+        
+        <!-- هدر و جستجو -->
+        <div class="flex flex-col gap-6 mb-8">
+            <h1 class="text-3xl font-black text-center mb-2 tracking-tight drop-shadow-lg text-white">هواشناسی جهان</h1>
+            
+            <div class="relative w-full">
+                <input type="text" id="cityInput" placeholder="جستجوی شهر (Tehran, London...)" 
+                    class="custom-input w-full p-4 pr-12 rounded-2xl placeholder-white/50 text-white outline-none">
+                <button onclick="fetchWeather()" class="absolute left-3 top-1/2 -translate-y-1/2 p-2 hover:bg-white/20 rounded-xl transition">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="loading" class="loader mx-auto hidden"></div>
+            <p id="errorMsg" class="text-red-200 text-center text-sm font-medium hidden">شهر مورد نظر پیدا نشد!</p>
+        </div>
+
+        <!-- نمایش اصلی آب و هوا -->
+        <div id="weatherDisplay" class="flex flex-col items-center text-center transition-opacity duration-500">
+            
+            <div class="relative group cursor-pointer mb-2" onclick="speakWeather()">
+                <div class="absolute -top-2 -right-2 bg-indigo-500 p-2 rounded-full shadow-lg border border-white/20">
+                    <i data-lucide="volume-2" class="w-4 h-4 text-white"></i>
+                </div>
+                <!-- آیکون وضعیت -->
+                <i id="mainIcon" data-lucide="sun" class="w-36 h-36 text-yellow-300 weather-icon transition-all duration-700 group-hover:scale-110"></i>
+            </div>
+
+            <h2 id="cityName" class="text-4xl font-black mb-1 drop-shadow-md text-white">تهران</h2>
+            <p id="description" class="text-xl text-white/80 mb-6 font-medium">آسمان صاف و آفتابی</p>
+            
+            <div class="text-8xl font-black mb-8 tracking-tighter drop-shadow-2xl flex items-start">
+                <span id="temp">24</span><span class="text-4xl mt-2">°</span>
+            </div>
+
+            <!-- جزئیات -->
+            <div class="grid grid-cols-3 gap-3 w-full mb-8">
+                <div class="bg-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 border border-white/5">
+                    <i data-lucide="wind" class="w-5 h-5 text-blue-300"></i>
+                    <span class="text-[10px] uppercase tracking-wider text-white/60">باد</span>
+                    <span id="windSpeed" class="text-sm font-bold">12 km/h</span>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 border border-white/5">
+                    <i data-lucide="droplets" class="w-5 h-5 text-cyan-300"></i>
+                    <span class="text-[10px] uppercase tracking-wider text-white/60">رطوبت</span>
+                    <span id="humidity" class="text-sm font-bold">45%</span>
+                </div>
+                <div class="bg-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 border border-white/5">
+                    <i data-lucide="thermometer" class="w-5 h-5 text-orange-300"></i>
+                    <span class="text-[10px] uppercase tracking-wider text-white/60">احساس</span>
+                    <span id="feelsLike" class="text-sm font-bold">26°</span>
+                </div>
+            </div>
+
+            <!-- دکمه هوش مصنوعی جمنای -->
+            <button onclick="askGemini()" class="gemini-btn w-full py-4 rounded-2xl flex items-center justify-center gap-3 text-white font-black text-lg mb-4 shadow-xl">
+                <i data-lucide="sparkles" class="w-6 h-6 animate-pulse"></i>
+                <span>تحلیل هوشمند Gemini</span>
+            </button>
+
+            <!-- باکس پاسخ هوش مصنوعی -->
+            <div id="aiResponseBox" class="hidden w-full bg-black/20 backdrop-blur-md rounded-2xl p-5 text-right text-sm leading-7 border-r-4 border-indigo-400 animate-[fadeIn_0.5s_ease-out]">
+                <div class="flex items-center gap-2 mb-3 text-indigo-300 font-bold border-b border-white/5 pb-2">
+                    <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+                    <span>پیشنهاد هوش مصنوعی:</span>
+                </div>
+                <p id="aiText" class="text-white/95 font-medium"></p>
+            </div>
+
+            <!-- دکمه پخش صدا -->
+            <button onclick="speakWeather()" class="mt-6 flex items-center gap-2 text-white/40 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
+                <i data-lucide="audio-lines" class="w-4 h-4"></i>
+                <span>Listen in English</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // توجه: برای کارکرد صحیح هوش مصنوعی در محیط آنلاین، مقدار apiKey را با کلید خود جایگزین کنید.
+        const apiKey = ""; 
+
+        async function askGemini() {
+            const aiBox = document.getElementById('aiResponseBox');
+            const aiText = document.getElementById('aiText');
+            
+            aiBox.classList.remove('hidden');
+            aiText.innerHTML = '<div class="flex items-center gap-2 justify-end"><span>در حال تحلیل شرایط جوی...</span><div class="loader"></div></div>';
+
+            const prompt = `
+                به عنوان یک متخصص هواشناسی فانتزی، وضعیت هوای شهر ${currentData.city} را تحلیل کن:
+                دما: ${currentData.temp}°C، وضعیت: ${currentData.condition.faLabel}، رطوبت: ${currentData.humidity}%، باد: ${currentData.wind}km/h.
+                یک پیشنهاد کوتاه، صمیمی و جذاب به زبان فارسی بده. (حداکثر ۲۰ کلمه). از ایموجی‌های مرتبط استفاده کن.
+            `;
+
+            try {
+                // پیاده‌سازی مکانیزم Retry برای امنیت بیشتر API
+                const fetchWithRetry = async (url, options, retries = 5, backoff = 1000) => {
+                    try {
+                        const res = await fetch(url, options);
+                        if (!res.ok) throw new Error('API Error');
+                        return res;
+                    } catch (err) {
+                        if (retries <= 0) throw err;
+                        await new Promise(resolve => setTimeout(resolve, backoff));
+                        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+                    }
+                };
+
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+                const suggestion = data.candidates[0].content.parts[0].text;
+                typeWriter(suggestion, aiText);
+
+            } catch (error) {
+                aiText.innerText = "اوه! ارتباط با مغز متفکر قطع شد. دوباره امتحان کن. 🔌";
+            }
+        }
+
+        function typeWriter(text, element) {
+            element.innerHTML = "";
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, 25);
+                }
+            }
+            type();
+        }
+
+        // منطق دیتای هواشناسی
+        lucide.createIcons();
+
+        const weatherTypes = [
+            { id: 'Sunny', label: 'Clear Sky', faLabel: 'آسمان کاملاً صاف', icon: 'sun', bg: 'bg-sunny', color: 'text-yellow-300' },
+            { id: 'Cloudy', label: 'Cloudy', faLabel: 'کمی ابری', icon: 'cloud', bg: 'bg-cloudy', color: 'text-gray-100' },
+            { id: 'Rainy', label: 'Heavy Rain', faLabel: 'بارش باران', icon: 'cloud-rain', bg: 'bg-rainy', color: 'text-blue-200' },
+            { id: 'Snowy', label: 'Snow', faLabel: 'بارش برف', icon: 'snowflake', bg: 'bg-snowy', color: 'text-white' },
+            { id: 'Storm', label: 'Thunderstorm', faLabel: 'رعد و برق', icon: 'cloud-lightning', bg: 'bg-night', color: 'text-indigo-200' }
+        ];
+
+        let currentData = {
+            city: 'Tehran',
+            temp: 24,
+            condition: weatherTypes[0],
+            humidity: 45,
+            wind: 12,
+            feelsLike: 26
+        };
+
+        function fetchWeather() {
+            const city = document.getElementById('cityInput').value.trim();
+            if (!city) return;
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('weatherDisplay').style.opacity = '0.3';
+            document.getElementById('aiResponseBox').classList.add('hidden');
+
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('weatherDisplay').style.opacity = '1';
+                
+                const seed = city.length + city.charCodeAt(0); 
+                const weatherIndex = seed % weatherTypes.length;
+                const temp = (seed % 35) - 5;
+                
+                currentData = {
+                    city: city,
+                    temp: temp,
+                    condition: weatherTypes[weatherIndex],
+                    humidity: 40 + (seed % 50),
+                    wind: 5 + (seed % 20),
+                    feelsLike: temp + (seed % 3 === 0 ? 2 : -1)
+                };
+
+                updateUI();
+            }, 600);
+        }
+
+        function updateUI() {
+            const displayCity = currentData.city.charAt(0).toUpperCase() + currentData.city.slice(1);
+            document.getElementById('cityName').innerText = isPersian(currentData.city) ? currentData.city : displayCity;
+            document.getElementById('temp').innerText = currentData.temp;
+            document.getElementById('description').innerText = currentData.condition.faLabel;
+            document.getElementById('humidity').innerText = currentData.humidity + '%';
+            document.getElementById('windSpeed').innerText = currentData.wind + ' km/h';
+            document.getElementById('feelsLike').innerText = currentData.feelsLike + '°';
+
+            const mainIcon = document.getElementById('mainIcon');
+            mainIcon.setAttribute('data-lucide', currentData.condition.icon);
+            mainIcon.className = `w-36 h-36 weather-icon transition-all duration-700 group-hover:scale-110 ${currentData.condition.color}`;
+            
+            lucide.createIcons();
+            document.getElementById('mainBody').className = `min-h-screen flex items-center justify-center p-4 text-white overflow-hidden transition-all duration-1000 ${currentData.condition.bg}`;
+        }
+
+        function speakWeather() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const text = `The current weather in ${currentData.city} is ${currentData.condition.label}. The temperature is ${currentData.temp} degrees celsius.`;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function isPersian(str) {
+            return /^[\u0600-\u06FF\s]+$/.test(str);
+        }
+        
+        document.getElementById('cityInput').addEventListener('keypress', (e) => e.key === 'Enter' && fetchWeather());
+    </script>
+</body>
+</html>
