@@ -20,13 +20,13 @@
             transition: background 1s ease;
             margin: 0;
             padding: 0;
+            min-height: 100vh;
         }
 
         .bg-sunny { background: linear-gradient(135deg, #00b4db, #0083b0); }
         .bg-cloudy { background: linear-gradient(135deg, #5d4157, #a8caba); }
         .bg-rainy { background: linear-gradient(135deg, #203a43, #2c5364); }
         .bg-snowy { background: linear-gradient(135deg, #e6dada, #274046); }
-        .bg-night { background: linear-gradient(135deg, #141e30, #243b55); }
         .bg-mist { background: linear-gradient(135deg, #606c88, #3f4c6b); }
 
         .glass-panel {
@@ -58,7 +58,7 @@
         }
         .gemini-btn:hover {
             background-position: right center;
-            transform: scale(1.05);
+            transform: scale(1.02);
         }
 
         .custom-input {
@@ -80,7 +80,7 @@
         }
     </style>
 </head>
-<body class="bg-sunny min-h-screen flex items-center justify-center p-4 text-white transition-all duration-1000" id="mainBody">
+<body class="bg-sunny flex items-center justify-center p-4 text-white" id="mainBody">
 
     <div class="glass-panel rounded-[2rem] p-8 w-full max-w-md relative transition-all duration-500 shadow-2xl">
         
@@ -144,7 +144,6 @@
     </div>
 
     <script>
-        // تنظیمات اولیه
         const geminiApiKey = "AIzaSyCkmBaLmWuaqJ3PbtSmfLv7az52gMyA5XI"; 
         const weatherApiKey = "abfbc2bcdd9a5532bd6eab88413c6a56"; 
 
@@ -220,9 +219,11 @@
 
             icon.setAttribute('data-lucide', iconName);
             icon.className = `w-24 h-24 ${colorClass} transition-all duration-700 ${currentData.condition === 'Clear' ? 'sun-animate' : ''}`;
-            body.className = `min-h-screen flex items-center justify-center p-4 text-white transition-all duration-1000 ${bgClass}`;
+            body.className = `flex items-center justify-center p-4 text-white transition-all duration-1000 ${bgClass}`;
             
-            lucide.createIcons();
+            if (window.lucide) {
+                lucide.createIcons();
+            }
             document.getElementById('aiResponseBox').classList.add('hidden');
         }
 
@@ -258,13 +259,14 @@
             window.speechSynthesis.speak(msg);
         }
 
-        // اجرای اولیه آیکون‌ها
-        window.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
+        window.onload = () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
             document.getElementById('cityInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') fetchWeather();
             });
-        });
+        };
     </script>
 </body>
 </html>
